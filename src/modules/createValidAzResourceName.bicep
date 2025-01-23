@@ -326,7 +326,11 @@ var regularName = replace(
   replace(
     replace(
       replace(
-        replace(replace(namingConventionSegmentSeparatorProcessed, '{env}', toLower(environment)), '{loc}', location),
+        replace(
+          replace(namingConventionSegmentSeparatorProcessed, '{environment}', toLower(environment)),
+          '{location}',
+          location
+        ),
         '{seq}',
         sequenceFormatted
       ),
@@ -399,8 +403,8 @@ var actualShortName = replace(
     replace(
       replace(
         replace(
-          replace(namingConventionSegmentSeparatorProcessed, '{env}', toLower(take(environment, 1))),
-          '{loc}',
+          replace(namingConventionSegmentSeparatorProcessed, '{environment}', toLower(take(environment, 1))),
+          '{location}',
           shortLocationValue
         ),
         '{seq}',
