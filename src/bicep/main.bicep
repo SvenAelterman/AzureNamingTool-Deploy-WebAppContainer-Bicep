@@ -1,6 +1,8 @@
 targetScope = 'subscription'
 
-param namingConvention string = 'AzureNamingTool-demo-{rtype}-${location}-{seq}'
+param environment string = 'demo'
+param workloadName string = 'AzureNamingTool'
+param namingConvention string = '{workloadName}-{environment}-{rtype}-{location}-{seq}'
 param location string
 param sequence int = 1
 param tags object = {}
@@ -11,7 +13,15 @@ param networkAddressPrefix string
 param userOrGroupPrincipalId string
 
 var sequenceFormatted = format('{0:00}', sequence)
-var namingStructure = replace(namingConvention, '{seq}', sequenceFormatted)
+var namingStructure = replace(
+  replace(
+    replace(replace(namingConvention, '{seq}', sequenceFormatted), '{workloadName}', workloadName),
+    '{environment}',
+    environment
+  ),
+  '{location}',
+  location
+)
 var resourceGroupName = replace(namingStructure, '{rtype}', 'rg')
 
 module resourceGroupModule 'br/public:avm/res/resources/resource-group:0.2.4' = {
@@ -29,6 +39,7 @@ module resourceGroupModule 'br/public:avm/res/resources/resource-group:0.2.4' = 
     tags: tags
   }
 }
+
 module networkSecurityGroupModule 'br/public:avm/res/network/network-security-group:0.3.1' = {
   name: 'networkSecurityGroupDeployment'
   scope: resourceGroup(resourceGroupName)
@@ -128,7 +139,7 @@ module registryModule 'br/public:avm/res/container-registry/registry:0.3.2' = {
   }
 }
 
-module serverfarmModule 'br/public:avm/res/web/serverfarm:0.2.2' = {
+module serverFarmModule 'br/public:avm/res/web/serverfarm:0.2.2' = {
   name: 'AzureNamingTool-serverfarm'
   scope: resourceGroup(resourceGroupName)
   params: {
@@ -146,14 +157,14 @@ module serverfarmModule 'br/public:avm/res/web/serverfarm:0.2.2' = {
   dependsOn: [resourceGroupModule]
 }
 
-module siteModule 'br/public:avm/res/web/site:0.3.9' = {
+module siteModule 'br/public:avm/res/web/site:0.13.1' = {
   name: 'AzureNamingTool-site'
   scope: resourceGroup(resourceGroupName)
   params: {
     // Required parameters
     kind: 'app,linux,container'
     name: replace(namingStructure, '{rtype}', 'app')
-    serverFarmResourceId: serverfarmModule.outputs.resourceId
+    serverFarmResourceId: serverFarmModule.outputs.resourceId
 
     // Non-required parameters
     basicPublishingCredentialsPolicies: [
@@ -162,10 +173,12 @@ module siteModule 'br/public:avm/res/web/site:0.3.9' = {
         name: 'ftp'
       }
       {
-        allow: false
+        allow: true
         name: 'scm'
       }
     ]
+
+    // TODO: add startup command dotnet AzureNamingTool.dll
 
     httpsOnly: true
     location: location
@@ -181,6 +194,7 @@ module siteModule 'br/public:avm/res/web/site:0.3.9' = {
     siteConfig: {
       alwaysOn: true
 
+      appCommandLine: 'dotnet AzureNamingTool.dll'
       linuxFxVersion: 'DOCKER|${registryModule.outputs.loginServer}/${containerImage}'
       acrUseManagedIdentityCreds: true
       acrUserManagedIdentityId: userAssignedIdentityModule.outputs.clientId
@@ -205,13 +219,27 @@ module siteModule 'br/public:avm/res/web/site:0.3.9' = {
   }
 }
 
+module storageAccountNameModule '../modules/createValidAzResourceName.bicep' = {
+  scope: resourceGroup(resourceGroupName)
+  name: 'AzureNamingTool-storageAccountName'
+  params: {
+    location: location
+    environment: environment
+    namingConvention: namingConvention
+    resourceType: 'st'
+    sequence: sequence
+    workloadName: workloadName
+  }
+  dependsOn: [resourceGroupModule]
+}
+
 module storageAccount 'br/public:avm/res/storage/storage-account:0.9.1' = {
   name: 'AzureNamingTool-storageAccount'
   scope: resourceGroup(resourceGroupName)
   params: {
     // Required parameters
     // TODO: Use naming tool
-    name: 'antdemostcnc01'
+    name: storageAccountNameModule.outputs.validName
 
     // Non-required parameters
     allowBlobPublicAccess: false
@@ -257,6 +285,4 @@ module storageAccount 'br/public:avm/res/storage/storage-account:0.9.1' = {
     skuName: 'Standard_ZRS'
     tags: tags
   }
-
-  dependsOn: [resourceGroupModule]
 }
