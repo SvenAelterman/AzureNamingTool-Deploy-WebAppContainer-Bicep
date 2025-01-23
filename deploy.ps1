@@ -22,19 +22,18 @@
     ./deploy.ps1 '.\main.prj.bicepparam' '00000000-0000-0000-0000-000000000000' 'eastus'
 #>
 
-# LATER: Be more specific about the required modules; it will speed up the initial call
-#Requires -Modules "Az"
+#Requires -Modules "Az.Resources"
 #Requires -PSEdition Core
 
 [CmdletBinding()]
 Param(
-    [Parameter(Position = 1)]
+    [Parameter()]
     [string]$TemplateParameterFile = './src/bicep/main.bicepparam',
-    [Parameter(Mandatory, Position = 2)]
+    [Parameter(Mandatory)]
     [string]$TargetSubscriptionId,
-    [Parameter(Mandatory, Position = 3)]
+    [Parameter(Mandatory)]
     [string]$Location,
-    [Parameter(Position = 5)]
+    [Parameter()]
     [string]$Environment = 'AzureCloud'
 )
 
@@ -59,7 +58,7 @@ $DeploymentResult = New-AzDeployment @CmdLetParameters
 if ($DeploymentResult.ProvisioningState -eq 'Succeeded') {
     Write-Host "🔥 Deployment succeeded."
 
-    $DeploymentResult.Outputs | Format-Table -Property Key, @{Name = 'Value'; Expression = { $_.Value.Value } }
+    $DeploymentResult.Outputs | Format-Table -Property @{Name = 'Output Name'; Expression = { $_.Key } }, @{Name = 'Value'; Expression = { $_.Value.Value } }
 }
 else {
     $DeploymentResult
