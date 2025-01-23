@@ -345,8 +345,8 @@ var shortName = replace(
     replace(
       replace(
         replace(
-          replace(namingConventionSegmentSeparatorProcessed, '{env}', toLower(take(environment, 1))),
-          '{loc}',
+          replace(namingConventionSegmentSeparatorProcessed, '{environment}', toLower(take(environment, 1))),
+          '{location}',
           shortLocationValue
         ),
         '{seq}',
