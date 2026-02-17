@@ -178,8 +178,6 @@ module siteModule 'br/public:avm/res/web/site:0.13.1' = {
       }
     ]
 
-    // TODO: add startup command dotnet AzureNamingTool.dll
-
     httpsOnly: true
     location: location
 
@@ -205,12 +203,19 @@ module siteModule 'br/public:avm/res/web/site:0.13.1' = {
           value: 'dotnetcore'
         }
       ]
+
+      azureStorageAccounts: {
+        azurenamingtool: {
+          accountName: storageAccount.outputs.name
+          shareName: fileShareName
+          mountPath: '/app/settings'
+          protocol: 'smb'
+          type: 'AzureFiles'
+        }
+      }
     }
 
     tags: tags
-
-    // storageAccountResourceId: '<storageAccountResourceId>'
-    // storageAccountUseIdentityAuthentication: true
 
     virtualNetworkSubnetId: virtualNetworkModule.outputs.subnetResourceIds[0]
     vnetContentShareEnabled: true
@@ -233,21 +238,24 @@ module storageAccountNameModule '../modules/createValidAzResourceName.bicep' = {
   dependsOn: [resourceGroupModule]
 }
 
+var fileShareName = 'azurenamingtool'
+
 module storageAccount 'br/public:avm/res/storage/storage-account:0.9.1' = {
   name: 'AzureNamingTool-storageAccount'
   scope: resourceGroup(resourceGroupName)
   params: {
     // Required parameters
-    // TODO: Use naming tool
     name: storageAccountNameModule.outputs.validName
 
     // Non-required parameters
     allowBlobPublicAccess: false
+    allowSharedKeyAccess: true
+
     fileServices: {
       shares: [
         {
           accessTier: 'Hot'
-          name: 'azurenamingtool'
+          name: fileShareName
           shareQuota: 5120
         }
       ]
@@ -271,7 +279,7 @@ module storageAccount 'br/public:avm/res/storage/storage-account:0.9.1' = {
       ipRules: [
         {
           action: 'Allow'
-          value: '69.130.149.21'
+          value: '96.61.155.161'
         }
       ]
       virtualNetworkRules: [
@@ -283,6 +291,6 @@ module storageAccount 'br/public:avm/res/storage/storage-account:0.9.1' = {
     }
     requireInfrastructureEncryption: true
     skuName: 'Standard_ZRS'
-    tags: tags
+    tags: union(tags, { SecurityControl: 'Ignore' })
   }
 }
